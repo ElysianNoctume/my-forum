@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1672-forum</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#d3d3d3;font-family:"宋体","Courier New",monospace;font-size:14px;line-height:1.6;padding:10px}
+.container{width:1000px;margin:0 auto;background:#e8e8e8;border:4px outset #fff;padding:25px}
+.banner{width:100%;border:2px inset #aaa;margin-bottom:15px;position:relative}
+.banner img{width:100%;display:block}
+.banner-text{position:absolute;bottom:10px;right:15px;color:white;font-size:16px;font-weight:bold;text-shadow:1px 1px 3px black}
+.bar{background:#0066cc;color:white;padding:8px;margin:15px 0;font-weight:bold}
+input,textarea{width:100%;border:2px inset #aaa;padding:8px;font-family:inherit;font-size:14px;margin-bottom:10px}
+.btn{background:#d0d0d0;border:2px outset #fff;padding:8px 16px;cursor:pointer;font-family:inherit;font-size:14px}
+.btn:active{border-style:inset}
+.post-item{background:white;border:2px solid #333;padding:30px;margin-bottom:20px;display:flex;gap:25px;min-height:250px;position:relative;width:800px}
+.avatar{width:100px;height:100px;border:2px inset #aaa;flex-shrink:0}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.post-content{flex-grow:1;display:flex;flex-direction:column;gap:10px}
+.post-title{font-size:20px;font-weight:bold;color:#0000aa}
+.post-info{font-size:14px;color:#555}
+.post-body{font-size:16px;line-height:1.8}
+.reply-btn{position:absolute;top:30px;right:30px;padding:6px 12px;background:#d0d0d0;border:2px outset #fff;cursor:pointer}
+.reply-area{background:white;border:2px inset #aaa;padding:20px;margin:0 0 20px 130px;width:670px;display:none;position:relative}
+.close-reply{position:absolute;top:10px;right:15px;color:red;font-size:20px;cursor:pointer}
+.replies{margin-top:15px;padding-top:10px;border-top:1px solid #eee}
+.reply-item{background:#f8f8f8;padding:10px;margin-bottom:8px;border:1px solid #ddd}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="banner">
+<img src="https://s3.bmp.ovh/2026/03/01/eFsz0etr.png">
+<div class="banner-text">1672-forum</div>
+</div>
+<div class="bar">昵称</div>
+<input type="text" id="username" placeholder="请输入你的昵称">
+<div class="bar">发布新帖</div>
+<input type="text" id="post-title" placeholder="帖子标题">
+<textarea id="post-content" rows="5" placeholder="帖子内容"></textarea>
+<button class="btn" onclick="submitPost()">发布帖子</button>
+<div class="bar">所有帖子</div>
+<div id="posts-container">加载中...</div>
+</div>
+<script>
+const API_URL="https://my-forum-api.1299047066.workers.dev";
+const AVATAR_URL="https://s3.bmp.ovh/2026/02/25/28EVWpbb.png";
+let allPosts=[];
+async function loadAllPosts(){const res=await fetch(API_URL+"/list");allPosts=await res.json();renderPosts();}
+function renderPosts(){const c=document.getElementById("posts-container");if(allPosts.length===0){c.innerHTML="<p>暂无帖子，快来发布第一条吧！</p>";return;}
+let h="";allPosts.forEach(p=>{h+=`<div class="post-item"><div class="avatar"><img src="${AVATAR_URL}"></div><div class="post-content"><div class="post-title">${p.title}</div><div class="post-info">${p.user} · ${p.time}</div><div class="post-body">${p.content}</div></div><div class="reply-btn" onclick="toggleReply(${p.id})">回复</div></div><div class="reply-area" id="reply-${p.id}"><span class="close-reply" onclick="toggleReply(${p.id})">×</span><div style="font-weight:bold;margin-bottom:10px;">回复内容</div><textarea id="reply-content-${p.id}" rows="3"></textarea><br><button class="btn" onclick="submitReply(${p.id})">提交回复</button><div class="replies" id="replies-${p.id}">${renderReplies(p.replies)}</div></div>`;});c.innerHTML=h;}
+function renderReplies(r){if(!r||r.length===0)return"";let h="<div style='margin-top:10px;padding-top:10px;border-top:1px solid #eee;'>";r.forEach(i=>{h+=`<div class="reply-item"><b>${i.user}:</b> ${i.content}</div>`;});return h+"</div>";}
+function toggleReply(id){const a=document.getElementById("reply-"+id);a.style.display=a.style.display==="block"?"none":"block";}
+async function submitPost(){const u=document.getElementById("username").value.trim()||"匿名用户";const t=document.getElementById("post-title").value.trim();const c=document.getElementById("post-content").value.trim();if(!t||!c){alert("标题和内容不能为空！");return;}
+await fetch(API_URL+"/post",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:u,title:t,content:c})});document.getElementById("post-title").value="";document.getElementById("post-content").value="";await loadAllPosts();}
+async function submitReply(id){const u=document.getElementById("username").value.trim()||"匿名用户";const c=document.getElementById("reply-content-"+id).value.trim();if(!c){alert("回复内容不能为空！");return;}
+await fetch(API_URL+"/reply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({postId:id,user:u,content:c})});document.getElementById("reply-content-"+id).value="";await loadAllPosts();}
+setInterval(loadAllPosts,5000);
+window.onload=()=>{loadAllPosts();}
+</script>
+</body>
+</html>
