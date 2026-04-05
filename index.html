@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>1672-forum</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#d3d3d3;font-family:"宋体",Courier New,monospace;padding:10px}
+.container{width:1000px;margin:0 auto;background:#e8e8e8;border:4px outset #fff;padding:25px}
+.forum-title{text-align:center;font-size:22px;font-weight:bold;margin-bottom:16px;color:#000}
+.banner{width:100%;border:2px inset #aaa;margin-bottom:15px}
+.banner img{width:100%}
+.bar{background:#06c;color:#fff;padding:8px;margin:12px 0}
+input,textarea{width:100%;border:2px inset #aaa;padding:8px;margin-bottom:10px}
+.btn{background:#d0d0d0;border:2px outset #fff;padding:8px 16px;cursor:pointer}
+.post-item{background:#fff;border:2px solid #333;padding:30px;margin-bottom:20px;width:750px;min-height:400px;display:flex;gap:22px}
+.avatar{width:120px;text-align:center}
+.avatar img{width:120px;height:120px;border:2px inset #aaa}
+.avatar-name{margin-top:8px;font-weight:bold;word-break:break-all;white-space:normal}
+.post-content{flex:1;display:flex;flex-direction:column;gap:10px}
+.post-title{font-size:22px;font-weight:bold;color:#00a;border-bottom:1px solid #ccc;padding-bottom:5px}
+.post-time{font-size:12px;color:#666}
+.post-body{background:#f8f8f8;padding:12px;border:1px inset #aaa;min-height:200px;line-height:1.7;white-space:pre-wrap}
+.comment{background:#f0f0f0;border-left:4px solid #06c;padding:8px;margin-top:5px}
+.reply-box{margin-top:10px;display:none}
+.tip{color:#333;margin:6px 0;font-size:14px}
+.owner-tag{background:#0066ff;color:#fff;font-size:12px;padding:2px 6px;border-radius:2px;margin-left:6px;font-weight:normal}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="forum-title">1672 - Residual Temperature Of Blood - Forum</div>
+
+<div class="banner">
+<img src="https://s3.bmp.ovh/2026/03/01/eFsz0etr.png">
+</div>
+
+<div class="bar">头像URL</div>
+<input id="avatarUrl" placeholder="输入头像URL">
+
+<div class="bar">昵称</div>
+<input id="user" placeholder="输入昵称">
+
+<div class="bar">发布新帖</div>
+<input id="title" placeholder="标题">
+<textarea id="content" rows="6" placeholder="内容"></textarea>
+<button class="btn" onclick="goPost()">发布帖子</button>
+
+<div class="bar">所有帖子</div>
+<div class="tip">欢迎你来到1672论坛，请文明交流!</div>
+<div class="tip">发布帖子后请耐心等待或刷新网页，加载时间会有些久哦！</div>
+
+<div id="list">加载中...</div>
+</div>
+
+<script>
+const TOKEN = "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";
+const USER = "ElysianNoctume";
+const REPO = "1672-forum";
+const DEFAULT_AVATAR = "https://s3.bmp.ovh/2026/04/05/KRF6hoLw.png";
+
+async function load(){
+const res=await fetch(`https://api.github.com/repos/${USER}/${REPO}/issues`,{headers:{Authorization:"token "+TOKEN}});
+const list=await res.json();
+let html="";
+for(const item of list){
+const lines=item.body.split("\n");
+const name=lines[0]||"匿名";
+const avatar=(lines[1]&&lines[1].startsWith("http"))?lines[1]:DEFAULT_AVATAR;
+const content=lines.slice(2).join("\n");
+let cmtHtml="";
+const cmtRes=await fetch(`https://api.github.com/repos/${USER}/${REPO}/issues/${item.number}/comments`,{headers:{Authorization:"token "+TOKEN}});
+const cmts=await cmtRes.json();
+cmts.forEach(c=>{
+const cl=c.body.split("\n");
+const cn=cl[0]||"匿名";
+const ca=(cl[1]&&cl[1].startsWith("http"))?cl[1]:DEFAULT_AVATAR;
+const ct=cl.slice(2).join(" ");
+const ctime=new Date(c.created_at).toLocaleString();
+const isOwner=cn===name;
+cmtHtml+=`<div class="comment"><img src="${ca}" width="20"><b>${cn}</b>${isOwner?'<span class="owner-tag">楼主</span>':''} [${ctime}]<br>${ct}</div>`;
+});
+html+=`<div class="post-item"><div class="avatar"><img src="${avatar}"><div class="avatar-name">${name}</div></div><div class="post-content"><div class="post-title">${item.title}</div><div class="post-time">${new Date(item.created_at).toLocaleString()}</div><div class="post-body">${content}</div>${cmtHtml}<button class="btn" onclick="toggleReply(${item.number})">回复</button><div class="reply-box" id="reply_${item.number}"><textarea rows="3"></textarea><button class="btn" onclick="postReply(${item.number})">提交</button></div></div></div>`;
+}
+document.getElementById("list").innerHTML=html;
+}
+
+async function goPost(){
+const name=document.getElementById("user").value.trim();
+const avatar=document.getElementById("avatarUrl").value.trim()||DEFAULT_AVATAR;
+const title=document.getElementById("title").value.trim();
+const content=document.getElementById("content").value.trim();
+if(!name||!title||!content)return alert("请填写完整");
+await fetch(`https://api.github.com/repos/${USER}/${REPO}/issues`,{method:"POST",headers:{"Authorization":"token "+TOKEN,"Content-Type":"application/json"},body:JSON.stringify({title:title,body:name+"\n"+avatar+"\n"+content})});
+document.getElementById("title").value="";
+document.getElementById("content").value="";
+load();
+}
+
+function toggleReply(num){
+const el=document.getElementById("reply_"+num);
+el.style.display=el.style.display=="block"?"none":"block";
+}
+
+async function postReply(num){
+const name=document.getElementById("user").value.trim();
+const avatar=document.getElementById("avatarUrl").value.trim()||DEFAULT_AVATAR;
+const text=document.querySelector(`#reply_${num} textarea`).value.trim();
+if(!name||!text)return alert("请填写昵称和回复内容");
+await fetch(`https://api.github.com/repos/${USER}/${REPO}/issues/${num}/comments`,{method:"POST",headers:{"Authorization":"token "+TOKEN,"Content-Type":"application/json"},body:JSON.stringify({body:name+"\n"+avatar+"\n"+text})});
+load();
+}
+
+load();
+setInterval(load,8000);
+</script>
+</body>
+</html>
